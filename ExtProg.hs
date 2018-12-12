@@ -29,11 +29,28 @@ genSound :: Rational -> Double -> IO CreateProcess
 
 genSound dur freq = return $ proc "sox" [
     "-n",
+    "-q",
+    "-V0",
     "-r", "22050",
     "-b", "16", "-L",
     "-t", "wav", "/dev/stdout",
     "synth", show (fromRat dur),
     "sine", show freq
+  ]
+
+-- Run sox as pipe to resample audio to 44100 Hz
+-- sox -q -t wav /dev/stdin -r 44100 /dev/stdout
+
+rs44100 :: IO CreateProcess
+
+rs44100 = return $ proc "sox" [
+    "-q",
+    "-t", "wav",
+    "/dev/stdin",
+    "-r", "44100",
+    "-b", "16", "-L",
+    "-t", "wav",
+    "/dev/stdout"
   ]
 
 -- Get a sound sample from an espeak process (expecting it on its stdout)
