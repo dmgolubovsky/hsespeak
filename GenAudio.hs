@@ -6,7 +6,9 @@ module GenAudio where
 import Data.Maybe
 import Control.Monad.State
 import Data.WAVE
+import Data.Word
 import Data.Ratio
+import ZMidi.Core.Datatypes
 
 import Calibrate
 import MusicXML
@@ -48,9 +50,18 @@ updtempo cmsr = do
   let acdec = (fromIntegral dec) % (fromIntegral acc)
   let divlen = 60 % (fromIntegral $ newdiv * newtmp) * acdec
   modify (\s -> s {divLength = divlen})
+  let qnl = divlen * fromIntegral newdiv
+      qtmp = 60 / qnl
+      miditmp = round $ (1000000 / qtmp)
+      stmsg = MetaEvent $ SetTempo miditmp
+  mt <- gets midiTempo
+  if mt == 0
+    then modify (\s -> s {midiTempo = miditmp})
+    else return ()
+  appendmidi [(0, stmsg)]
   return () 
 
--- Generate a silence wave of goven length in seconds
+-- Generate a silence wave of given length in seconds
 
 makepause :: Rational -> GS WAVE
 
@@ -59,6 +70,29 @@ makepause durgen = do
   let nfrmrat = (fromIntegral $ waveFrameRate $ waveHeader so) * durgen
       w = so {waveSamples = replicate (round nfrmrat) [0]}
   return w
+
+-- Generate a sequence of MIDI messages for a given note + transpose.
+-- If a note is a rest, both messages will be note off, but in case of
+-- a regular note the first message will be note on.
+
+mkmidinote :: Bool -> OctNote -> Int -> DeltaTime -> GS [MidiMessage]
+
+mkmidinote isrest octn@(o, n) trsp dt = do
+  mp <- gets midiPause
+  let nabs = fromIntegral $ noteAbsNumber o n + trsp
+  if isrest
+    then do
+      modify (\s -> s {midiPause = mp + dt})
+      return []
+    else do
+      let evt1 = VoiceEvent RS_OFF $ NoteOn 0x0 nabs 64
+          evt2 = VoiceEvent RS_OFF $ NoteOn 0x0 nabs 0
+      modify (\s -> s {midiPause = 0})
+      return [(mp, evt1), (dt, evt2)]
+
+appendmidi :: [MidiMessage] -> GS ()
+
+appendmidi mmsgs = modify (\s -> s {midiMsg = midiMsg s ++ mmsgs})
 
 -- Generate audio for all notes in the given measure.
 -- Calculate target time, compare with actual time, calculate the difference
@@ -119,6 +153,8 @@ makenotes (lnt:lnts) = do
     then modify (\s -> s {maxDrift = drift})
     else return ()
   modify (\s -> s {actTime = newactdr, targTime = newtarg, soundOut = newsodr})
+  mmsgs <- mkmidinote (rest lnt) (octave lnt, tnt) trsp (round $ (newact - act) * 1000000 / 60)
+  appendmidi mmsgs
   makenotes lnts
 
 
@@ -140,6 +176,9 @@ data GenState = GenState {
  ,saveDiv :: Int                         -- saved divisions per measure
  ,saveTempo :: Int                       -- saved tempo
  ,maxDrift :: Rational                   -- maximum time drift detected
+ ,midiMsg :: [MidiMessage]               -- generated MIDI messages
+ ,midiTempo :: Word32                    -- set tempo for the MIDI file header
+ ,midiPause :: DeltaTime                 -- pause accumulated on rests
 }
 
 type GS = StateT GenState IO
@@ -170,6 +209,9 @@ initGenState sc = do
    ,saveDiv = 0
    ,saveTempo = 0
    ,maxDrift = 0
+   ,midiMsg = []
+   ,midiTempo = 0
+   ,midiPause = 0
   }
 
 

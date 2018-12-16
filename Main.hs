@@ -15,6 +15,7 @@ import System.Process
 import Control.Monad.State
 import System.Directory
 import System.FilePath
+import ZMidi.Core
 
 import Notes
 import ExtProg
@@ -23,6 +24,8 @@ import Calibrate
 import NoteGen
 import MusicXML
 import GenAudio
+
+
 
 main = withCliModified mods main'
 
@@ -48,8 +51,16 @@ main' (MXML xmlpath') opts = do
                   Nothing -> curdir </> stem
                   Just outp -> dropExtension outp
   fings <- execStateT procScore gs'
+  let midihdr = MidiHeader {
+    hdr_format = MF0
+   ,num_tracks = 1
+   ,time_division = TPB $ fromIntegral $ midiTempo fings
+  }
+  let midifile = MidiFile midihdr [MidiTrack $ midiMsg $ fings]
+  let outmidi = outstem `addExtension` "mid"
+  writeMidi outmidi midifile
   let outwav = outstem `addExtension` "wav"
-  putStrLn $ "maximal drift was " ++ show ((fromRational $ maxDrift fings) :: Float)
+  putStrLn $ "maximal drift was " ++ show ((fromRational $ maxDrift fings) :: Float) ++ " sec"
   houtw <- openFile outwav WriteMode
   rsox' <- rs44100 
   let rsox = rsox' {
