@@ -70,7 +70,9 @@ main' (MXML xmlpath') opts = do
   (mbhin, _, _, p) <- createProcess rsox
   case mbhin of
     Nothing -> error "cannot get sox input pipe handle"
-    Just hin -> hPutWAVE hin (soundOut fings)
+    Just hin -> do
+      hPutWAVE hin (soundOut fings)
+      hClose hin
   waitForProcess p
   hClose houtw
   return ()
@@ -100,11 +102,19 @@ mods :: [Modifier]
 
 mods = [
   AddShortOption "voice'" 'v'
+ ,AddOptionHelp  "voice'" "Espeak voice name to use"
  ,AddShortOption "calibtxt'" 'c'
+ ,AddOptionHelp  "calibtxt'" 
+                 "Text to use for voice calibration, default is 'ee' for English voices"
  ,AddShortOption "accel'" 'a'
+ ,AddOptionHelp  "accel'" "Accelerate the vocals given number of times, can be used with --decel"
  ,AddShortOption "decel'" 'd'
+ ,AddOptionHelp  "decel'" "Decelerate the vocals given number of times, can be used with --accel"
  ,AddShortOption "ampl'" 'A'
+ ,AddOptionHelp  "ampl'" "Amplitude of vocals (Espeak parameter), default is 120"
  ,AddShortOption "transp'" 't'
+ ,AddOptionHelp  "transp'" "Transpose both vocals and MIDI by given number of semitones"
  ,AddShortOption "detune'" 'D'
+ ,AddOptionHelp  "detune'" "Detune vocals only by given number of semitones"
  ,AddShortOption "output'" 'o'
        ]
