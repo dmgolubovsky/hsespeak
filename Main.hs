@@ -9,6 +9,8 @@ module Main where
 import WithCli
 import System.IO
 import Data.WAVE
+import qualified Data.Map as M
+import Data.List (find, intercalate)
 import Data.Maybe
 import System.Environment
 import System.Process
@@ -36,6 +38,18 @@ main' (MXML xmlpath') opts = do
   gs <- initGenState sc
   let newvce = fromMaybe "default" (voice' opts)
       newcal = fromMaybe "ee" (calibtxt' opts)
+  part <- case parts sc of
+    [] -> error "Score has no parts"
+    [p] -> return p
+    pps | part' opts == Nothing -> do
+      let shpts = intercalate ", " (map partName $ parts sc)
+      error $ "Multiple parts detected: " ++ shpts ++ "; specify part with -p"
+    pps -> do
+      let pp = fromMaybe "______" $ part' opts
+      let mbprt = find (\p -> partName p == pp) (parts sc)
+      case mbprt of
+        Nothing -> error $ "No part named " ++ pp ++ " in the score"
+        Just prt -> return prt
   let gs' = gs {
     voiceName = newvce
    ,accel = fromMaybe 1 (accel' opts)
@@ -44,8 +58,11 @@ main' (MXML xmlpath') opts = do
    ,transpose = fromMaybe 0 (transp' opts)
    ,detune = fromMaybe 0 (detune' opts)
    ,caliber = Left (newvce, newcal)
+   ,msrsLeft = measures part
   }
-  let stem = takeBaseName xmlpath'
+  let stem = takeBaseName xmlpath' ++ case part' opts of
+                                        Nothing -> ""
+                                        Just ppp -> "_" ++ partName part
   curdir <- getCurrentDirectory
   let outstem = case output' opts of
                   Nothing -> curdir </> stem
@@ -96,6 +113,7 @@ data Options = Options {
  ,voice' :: Maybe String
  ,calibtxt' :: Maybe String
  ,output' :: Maybe String
+ ,part' :: Maybe String
 } deriving (Show, Generic, HasArguments)
 
 mods :: [Modifier]
@@ -117,4 +135,6 @@ mods = [
  ,AddShortOption "detune'" 'D'
  ,AddOptionHelp  "detune'" "Detune vocals only by given number of semitones"
  ,AddShortOption "output'" 'o'
+ ,AddShortOption "part'" 'p'
+ ,AddOptionHelp  "part'" "Select part to process by part name"
        ]

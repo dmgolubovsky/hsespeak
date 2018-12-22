@@ -5,6 +5,7 @@ module MusicXML where
 
 import System.IO
 import Data.Maybe
+import qualified Data.Map as M
 import Data.ByteString (hGetContents)
 import Text.XML.Light
 import Text.XML.Light.Helpers
@@ -13,11 +14,13 @@ data ScoreData = ScoreData deriving (Show)
 
 data Score = Score {
   scoredata :: Maybe ScoreData
+ ,partMap :: M.Map String String
  ,parts :: [Part]
 } deriving (Show)
 
 data Part = Part {
   partId :: String
+ ,partName :: String
  ,measures :: [Measure]
 } deriving (Show)
 
@@ -55,9 +58,25 @@ parseMusicXML path = do
 score :: Element -> Score
 
 score e = s where
-  mbps = mapChildren "part" e part
-  ps = fromMaybe [] mbps
-  s = Score Nothing ps
+  ps = fromMaybe [] $ mapChildren "part" e part
+  mbpl = findChild (unqual "part-list") e
+  pmp = partmap mbpl
+  ps' = map (\p -> p {partName = fromMaybe (partId p) $ M.lookup (partId p) pmp}) ps
+  s = Score Nothing pmp ps'
+
+-- Map of parts and part names
+
+partmap :: Maybe Element -> M.Map String String
+
+partmap Nothing = M.empty
+
+partmap (Just e) = m where
+  sps = fromMaybe [] $ mapChildren "score-part" e op
+  op p = case findAttr (unqual "id") p of
+    Nothing -> Nothing
+    Just pid -> Just (pid, pname) where
+      pname = fromMaybe pid $ getChildData "part-name" p
+  m = M.fromList sps
 
 -- Extract part
 
@@ -66,7 +85,7 @@ part :: Element -> Maybe Part
 part e = p where
   mbpid = findAttr (unqual "id") e
   msrs = mapChildren "measure" e measure
-  p = Just $ Part (fromMaybe "" mbpid) (fromMaybe [] msrs)
+  p = Just $ Part (fromMaybe "" mbpid) "" (fromMaybe [] msrs)
   
 measure :: Element -> Maybe Measure
 
@@ -127,20 +146,24 @@ note m e = n where
            }
 
 
+getChildIntData :: Int -> String -> Element -> Int
+
 getChildIntData v c e = z where
   mbcd = getChildData c e
   z = case mbcd of
     Nothing -> v
-    Just nc -> case reads nc of
-      (nn, _):_ -> nn
+    Just nc -> case (reads nc) :: [(Double, String)] of
+      (nn, _):_ -> round nn
       [] -> v
+
+getAttrIntData :: Int -> QName -> Element -> Int
 
 getAttrIntData v c e = z where
   mbcd = findAttr c e
   z = case mbcd of
     Nothing -> v
-    Just nc -> case reads nc of
-      (nn, _):_ -> nn
+    Just nc -> case (reads nc) :: [(Double, String)] of
+      (nn, _):_ -> round nn
       [] -> v
 
 

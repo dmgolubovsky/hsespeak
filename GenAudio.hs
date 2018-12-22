@@ -9,6 +9,7 @@ import Data.WAVE
 import Data.Word
 import Data.Ratio
 import ZMidi.Core.Datatypes
+import qualified Data.IntMap as I
 
 import Calibrate
 import MusicXML
@@ -43,6 +44,10 @@ updtempo cmsr = do
   case tempo cmsr of
     (-1) -> return ()
     tm -> modify (\s -> s {saveTempo = tm})
+  tmpmap <- gets tempoMap
+  case I.lookup (number cmsr) tmpmap of
+    Nothing -> return ()
+    Just tmp -> modify (\s -> s {saveTempo = tmp})
   newdiv <- gets saveDiv
   newtmp <- gets saveTempo
   acc <- gets accel
@@ -117,7 +122,8 @@ makenotes (lnt:lnts) = do
   [targ, act] <- mapM gets [targTime, actTime]
   let newtarg = targ + dursec
   let durgen = max 0.0 (newtarg - act)
-  (long, short) <- case rest lnt of
+  let isrest = rest lnt || ltext lnt == ""
+  (long, short) <- case isrest of
     False -> do
       (synth, fund) <- lift $ findNoteSynthPitchTrans (Just (trsp + detn)) cal (octave lnt, tnt)
       modify (\s -> s {caliber = Right fund})
@@ -153,7 +159,7 @@ makenotes (lnt:lnts) = do
     then modify (\s -> s {maxDrift = drift})
     else return ()
   modify (\s -> s {actTime = newactdr, targTime = newtarg, soundOut = newsodr})
-  mmsgs <- mkmidinote (rest lnt) (octave lnt, tnt) trsp (round $ (newact - act) * 1000000 / 60)
+  mmsgs <- mkmidinote isrest (octave lnt, tnt) trsp (round $ (newact - act) * 1000000 / 60)
   appendmidi mmsgs
   makenotes lnts
 
@@ -178,19 +184,18 @@ data GenState = GenState {
  ,maxDrift :: Rational                   -- maximum time drift detected
  ,midiMsg :: [MidiMessage]               -- generated MIDI messages
  ,midiTempo :: Word32                    -- set tempo for the MIDI file header
+ ,tempoMap :: I.IntMap Int               -- map of measure numbers to tempo sets
  ,midiPause :: DeltaTime                 -- pause accumulated on rests
 }
 
 type GS = StateT GenState IO
 
--- Initialize Generator State from score. Only the first defined part can be used for now.
+-- Initialize Generator State from score.
 
 initGenState :: Score -> IO GenState
 
 initGenState sc = do
   nullsnd <- genSound 0.00000001 0 >>= getSample
-  let part = head $ parts sc
-      msrs = measures part
   return GenState {
     voiceName = "default"
    ,voiceAmpl = 120
@@ -205,12 +210,16 @@ initGenState sc = do
    ,detune = 0
    ,targTime = 0
    ,actTime = 0
-   ,msrsLeft = msrs
+   ,msrsLeft = []
    ,saveDiv = 0
    ,saveTempo = 0
    ,maxDrift = 0
    ,midiMsg = []
    ,midiTempo = 0
+   ,tempoMap = I.fromList $ 
+               map (\m -> (number m, tempo m)) $ 
+               filter ((> 0) . tempo) $ 
+               concatMap measures $ parts sc
    ,midiPause = 0
   }
 
