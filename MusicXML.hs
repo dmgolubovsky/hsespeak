@@ -40,6 +40,7 @@ data LyrNote = LyrNote {
  ,duration :: Int
  ,lsyll :: String
  ,ltext :: String
+ ,accent :: Bool
  ,msrnum :: Int
 } deriving (Show)
 
@@ -122,6 +123,9 @@ note :: Int -> Element -> Maybe LyrNote
 
 note m e = n where
   [mbrest, mbpe, mblyr] = map (flip findChild e . unqual) ["rest", "pitch", "lyric"]
+  acc = findChild (unqual "notations") e >>= 
+        findChild (unqual "articulations") >>=
+        findChild (unqual "accent")
   (st, oc, al) = case mbpe of
     Nothing -> ("A", -1, 0)
     Just pe ->
@@ -143,6 +147,7 @@ note m e = n where
             ,lsyll = lsyll
             ,ltext = ltext
             ,msrnum = m
+            ,accent = isJust acc
            }
 
 

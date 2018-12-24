@@ -55,9 +55,12 @@ main' (MXML xmlpath') opts = do
    ,accel = fromMaybe 1 (accel' opts)
    ,decel = fromMaybe 1 (decel' opts)
    ,voiceAmpl = fromMaybe (voiceAmpl gs) (ampl' opts)
+   ,accAmpl = fromMaybe (accAmpl gs) (acc' opts)
    ,transpose = fromMaybe 0 (transp' opts)
    ,detune = fromMaybe 0 (detune' opts)
-   ,caliber = Left (newvce, newcal)
+   ,caliber = case cfreq' opts of
+      Nothing -> Left (newvce, newcal)
+      Just cf -> Right cf
    ,msrsLeft = measures part
   }
   let stem = takeBaseName xmlpath' ++ case part' opts of
@@ -114,6 +117,8 @@ data Options = Options {
  ,calibtxt' :: Maybe String
  ,output' :: Maybe String
  ,part' :: Maybe String
+ ,acc' :: Maybe Int
+ ,cfreq' :: Maybe Double
 } deriving (Show, Generic, HasArguments)
 
 mods :: [Modifier]
@@ -137,4 +142,7 @@ mods = [
  ,AddShortOption "output'" 'o'
  ,AddShortOption "part'" 'p'
  ,AddOptionHelp  "part'" "Select part to process by part name"
+ ,AddShortOption "cfreq'" 'F'
+ ,AddOptionHelp  "cfreq'" "Assume central pitch of the voice this value when calibration fails"
+ ,AddOptionHelp  "acc'" "Increase amplitude for accented notes by this value, default is 20"
        ]

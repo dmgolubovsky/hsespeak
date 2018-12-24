@@ -128,9 +128,13 @@ makenotes (lnt:lnts) = do
       (synth, fund) <- lift $ findNoteSynthPitchTrans (Just (trsp + detn)) cal (octave lnt, tnt)
       modify (\s -> s {caliber = Right fund})
       a <- gets voiceAmpl
+      ac <- gets accAmpl
       v <- gets voiceName
+      let a' = case accent lnt of
+                 True -> a + ac
+                 False -> a
       (s, l) <- lift $ findSpeed a v synth durgen (ltext lnt) (0, 500)
-      [sw, lw] <- lift $ mapM (\t -> runEspeak a v synth t (ltext lnt) >>= getSample) [s, l]
+      [sw, lw] <- lift $ mapM (\t -> runEspeak a' v synth t (ltext lnt) >>= getSample) [s, l]
       return (sw, lw)
     True -> do
       w <- makepause durgen   
@@ -171,6 +175,7 @@ data GenState = GenState {
  ,caliber :: Calibration                 -- voice calibration data
  ,voiceName :: String                    -- voice to use with Espeak
  ,voiceAmpl :: Int                       -- voice amplitude
+ ,accAmpl :: Int                         -- if note is accented increase amplitude by this
  ,divLength :: Rational                  -- length of one division in seconds
  ,accel :: Int                           -- acceleration factor
  ,decel :: Int                           -- deceleration factor
@@ -199,6 +204,7 @@ initGenState sc = do
   return GenState {
     voiceName = "default"
    ,voiceAmpl = 120
+   ,accAmpl = 20
    ,soundOut = nullsnd {waveSamples = []}
    ,lastUtter = ""
    ,lastPitch = (-1)
