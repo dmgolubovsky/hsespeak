@@ -58,7 +58,8 @@ findNoteSynthPitchTrans mbtr cal (toct, tnote) = do
       ndiff = atnote - acnote
       pdiff = (ndiff * 50) `div` 12
   if abs(pdiff) > 50
-    then error $ "Note " ++ show tnote ++ show toct ++ " outside the range of voice"
+    then error $ "Note " ++ show tnote ++ show toct ++ 
+                 " outside the range of voice (CF " ++ show fund ++ " Hz)"
     else return (50 + pdiff, fund)
 
 
