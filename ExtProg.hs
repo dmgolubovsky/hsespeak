@@ -6,11 +6,13 @@ import Data.WAVE
 import Data.Ratio
 import Numeric
 
--- Run espeak with given amplitude, voice, pitch, speed, and utterance
 
-runEspeak :: Int -> String -> Int -> Int -> String -> IO CreateProcess
 
-runEspeak ampl voice pitch speed utter = return $ proc "espeak" [
+-- Run espeak with given executable, amplitude, voice, pitch, speed, and utterance
+
+runEspeak :: String -> Int -> String -> Int -> Int -> String -> IO CreateProcess
+
+runEspeak exec ampl voice pitch speed utter = return $ proc exec [
     "-g", "0",
     "-k", "0",
     "-z",

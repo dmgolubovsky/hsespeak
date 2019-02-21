@@ -50,6 +50,7 @@ main' (MXML xmlpath') opts = do
       case mbprt of
         Nothing -> error $ "No part named " ++ pp ++ " in the score"
         Just prt -> return prt
+  let en = fromMaybe "espeak" (exec' opts)
   let gs' = gs {
     voiceName = newvce
    ,accel = fromMaybe 1 (accel' opts)
@@ -59,9 +60,10 @@ main' (MXML xmlpath') opts = do
    ,transpose = fromMaybe 0 (transp' opts)
    ,detune = fromMaybe 0 (detune' opts)
    ,caliber = case cfreq' opts of
-      Nothing -> Left (newvce, newcal)
+      Nothing -> Left (en, newvce, newcal)
       Just cf -> Right cf
    ,msrsLeft = measures part
+   ,execName = en
   }
   let stem = takeBaseName xmlpath' ++ case part' opts of
                                         Nothing -> ""
@@ -119,6 +121,7 @@ data Options = Options {
  ,part' :: Maybe String
  ,acc' :: Maybe Int
  ,cfreq' :: Maybe Double
+ ,exec' :: Maybe String
 } deriving (Show, Generic, HasArguments)
 
 mods :: [Modifier]
@@ -145,4 +148,6 @@ mods = [
  ,AddShortOption "cfreq'" 'F'
  ,AddOptionHelp  "cfreq'" "Assume central pitch of the voice this value when calibration fails"
  ,AddOptionHelp  "acc'" "Increase amplitude for accented notes by this value, default is 20"
+ ,AddShortOption "exec'" 'x'
+ ,AddOptionHelp  "exec'" "Synthesizer executable name, default is espeak"
        ]

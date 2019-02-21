@@ -11,15 +11,15 @@ import ExtProg
 -- Calibrated or uncalibrated voice: calibrated means we know the fundamental frequency
 -- for pitch 50, uncalibrated means we use the given voice name and text to get it.
 
-type Calibration = Either (String, String) Double
+type Calibration = Either (String, String, String) Double
 
 -- Determine the fundamental frequency for a voice at the given pitch. Get the spectrum,
 -- smoothen it and get the first peak.
 
-voiceFundamental :: String -> Int -> String -> IO (Maybe Double)
+voiceFundamental :: String -> String -> Int -> String -> IO (Maybe Double)
 
-voiceFundamental text pitch voice = do
-  p <- voiceSpectrumPitchText text pitch voice
+voiceFundamental exec text pitch voice = do
+  p <- voiceSpectrumPitchText exec text pitch voice
   let smpp = filter ((> 0.05) . snd) $ smoothen 3 p
       lmpp = locMax smpp
       fund = case lmpp of
@@ -27,23 +27,13 @@ voiceFundamental text pitch voice = do
         _ -> Just $ fst $ head lmpp
   return fund
 
--- Get voice spectrum for the median pitch 50
-
-voiceSpectrum = voiceSpectrumPitch 50
-
--- Generate a 0.25 sec sample "ee" on a given voice and pitch
--- and return its spectrum limited by 2kHz to eliminate the symmetric part 
--- of the FFT output
-
-voiceSpectrumPitch = voiceSpectrumPitchText "ee"
-
 -- The most general case: set text, calibration pitch, and voice name.
 
-voiceSpectrumPitchText :: String -> Int -> String -> IO [(Double, Double)]
+voiceSpectrumPitchText :: String -> String -> Int -> String -> IO [(Double, Double)]
 
-voiceSpectrumPitchText text pitch voice = do
-  spd <- findSpeed 120 voice pitch 0.25 text (1, 300) >>= return . fst
-  wav <- runEspeak 120 voice pitch spd text >>= getSample
+voiceSpectrumPitchText exec text pitch voice = do
+  spd <- findSpeed exec 120 voice pitch 0.25 text (1, 300) >>= return . fst
+  wav <- runEspeak exec 120 voice pitch spd text >>= getSample
   let fft = filter ((< 2000) . fst) $ waveFFT wav
   return fft
 
@@ -66,11 +56,11 @@ waveFFT wav =
 
 -- Find a minimal range of speed that approximates the given time in seconds
 
-findSpeed :: Int -> String -> Int -> Rational -> String -> (Int, Int) -> IO (Int, Int)
+findSpeed :: String -> Int -> String -> Int -> Rational -> String -> (Int, Int) -> IO (Int, Int)
 
-findSpeed ampl voice pitch tsec utter (lo, hi) = 
+findSpeed exec ampl voice pitch tsec utter (lo, hi) = 
   rangeSearch 1 (lo, hi) $ \mid -> do
-    wav <- runEspeak ampl voice pitch mid utter >>= getSample
+    wav <- runEspeak exec ampl voice pitch mid utter >>= getSample
     return $ compare (soundLength wav) tsec
 
  

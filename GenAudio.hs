@@ -115,6 +115,7 @@ makenotes (lnt:lnts) = do
   divs <- gets saveDiv
   trsp <- gets transpose
   detn <- gets detune
+  exec <- gets execName
   let dursec = (fromIntegral (duration lnt) % 1) * divl
   let tnt = stepAlter (step lnt) (alter lnt)
   cal <- gets caliber
@@ -133,8 +134,8 @@ makenotes (lnt:lnts) = do
       let a' = case accent lnt of
                  True -> a + ac
                  False -> a
-      (s, l) <- lift $ findSpeed a v synth durgen (ltext lnt) (0, 500)
-      [sw, lw] <- lift $ mapM (\t -> runEspeak a' v synth t (ltext lnt) >>= getSample) [s, l]
+      (s, l) <- lift $ findSpeed exec a v synth durgen (ltext lnt) (0, 500)
+      [sw, lw] <- lift $ mapM (\t -> runEspeak exec a' v synth t (ltext lnt) >>= getSample) [s, l]
       return (sw, lw)
     True -> do
       w <- makepause durgen   
@@ -191,6 +192,7 @@ data GenState = GenState {
  ,midiTempo :: Word32                    -- set tempo for the MIDI file header
  ,tempoMap :: I.IntMap Int               -- map of measure numbers to tempo sets
  ,midiPause :: DeltaTime                 -- pause accumulated on rests
+ ,execName :: String                     -- synthesizer executable name
 }
 
 type GS = StateT GenState IO
@@ -208,7 +210,7 @@ initGenState sc = do
    ,soundOut = nullsnd {waveSamples = []}
    ,lastUtter = ""
    ,lastPitch = (-1)
-   ,caliber = Left ("default", "ee")
+   ,caliber = Left ("espeak", "default", "ee")
    ,divLength = 0
    ,accel = 1
    ,decel = 1

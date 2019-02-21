@@ -45,9 +45,9 @@ findNoteSynthPitchTrans :: Maybe Int -> Calibration -> OctNote -> IO (Int, Doubl
 
 findNoteSynthPitchTrans mbtr cal (toct, tnote) = do
   fund <- case cal of
-    Left (voice, text) -> 
+    Left (exec, voice, text) -> 
       do
-        vf <- voiceFundamental text 50 voice
+        vf <- voiceFundamental exec text 50 voice
         case vf of
           Just ff -> return ff
           Nothing -> error $ "Cannot calibrate voice " ++ voice
