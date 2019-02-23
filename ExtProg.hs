@@ -3,6 +3,7 @@ module ExtProg where
 import System.Process
 import System.Environment
 import Data.WAVE
+import Data.List
 import Data.Ratio
 import Numeric
 
@@ -12,7 +13,10 @@ import Numeric
 
 runEspeak :: String -> Int -> String -> Int -> Int -> String -> IO CreateProcess
 
-runEspeak exec ampl voice pitch speed utter = return $ proc exec [
+runEspeak exec ampl voice@(v:vs) pitch speed utter = return $
+  let ld | v `elem` "./" = ["--load"]
+         | otherwise = []
+  in  proc exec $ ld ++ [
     "-g", "0",
     "-k", "0",
     "-z",

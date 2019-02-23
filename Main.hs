@@ -12,6 +12,7 @@ import Data.WAVE
 import qualified Data.Map as M
 import Data.List (find, intercalate)
 import Data.Maybe
+import System.Exit
 import System.Environment
 import System.Process
 import Control.Monad.State
@@ -34,10 +35,20 @@ main = withCliModified mods main'
 main' :: MXML -> Options -> IO ()
 
 main' (MXML xmlpath') opts = do
-  sc <- parseMusicXML xmlpath'
-  gs <- initGenState sc
   let newvce = fromMaybe "default" (voice' opts)
       newcal = fromMaybe "ee" (calibtxt' opts)
+      en = fromMaybe "espeak" (exec' opts)
+  if calib' opts
+    then do
+      vf <- voiceFundamental en newcal 50 newvce
+      case vf of
+        Just cf -> do
+          putStrLn $ show cf ++ " Hz"
+          exitSuccess
+        Nothing -> exitFailure
+    else return ()
+  sc <- parseMusicXML xmlpath'
+  gs <- initGenState sc
   part <- case parts sc of
     [] -> error "Score has no parts"
     [p] -> return p
@@ -50,7 +61,6 @@ main' (MXML xmlpath') opts = do
       case mbprt of
         Nothing -> error $ "No part named " ++ pp ++ " in the score"
         Just prt -> return prt
-  let en = fromMaybe "espeak" (exec' opts)
   let gs' = gs {
     voiceName = newvce
    ,accel = fromMaybe 1 (accel' opts)
@@ -116,6 +126,7 @@ data Options = Options {
  ,detune' :: Maybe Int
  ,ampl' :: Maybe Int
  ,voice' :: Maybe String
+ ,calib' :: Bool
  ,calibtxt' :: Maybe String
  ,output' :: Maybe String
  ,part' :: Maybe String
@@ -132,6 +143,8 @@ mods = [
  ,AddShortOption "calibtxt'" 'c'
  ,AddOptionHelp  "calibtxt'" 
                  "Text to use for voice calibration, default is 'ee' for English voices"
+ ,AddShortOption "calib'" 'C'
+ ,AddOptionHelp  "calib'" "Calibrate voice only, print central frequency, and exit"
  ,AddShortOption "accel'" 'a'
  ,AddOptionHelp  "accel'" "Accelerate the vocals given number of times, can be used with --decel"
  ,AddShortOption "decel'" 'd'
