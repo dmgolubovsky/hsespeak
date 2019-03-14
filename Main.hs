@@ -49,6 +49,12 @@ main' (MXML xmlpath') opts = do
     else return ()
   sc <- parseMusicXML xmlpath'
   gs <- initGenState sc
+  if list' opts
+    then do
+      let pnms = map partName $ parts sc
+      mapM putStrLn pnms
+      exitSuccess
+    else return ()
   part <- case parts sc of
     [] -> error "Score has no parts"
     [p] -> return p
@@ -133,6 +139,7 @@ data Options = Options {
  ,acc' :: Maybe Int
  ,cfreq' :: Maybe Double
  ,exec' :: Maybe String
+ ,list' :: Bool
 } deriving (Show, Generic, HasArguments)
 
 mods :: [Modifier]
@@ -163,4 +170,6 @@ mods = [
  ,AddOptionHelp  "acc'" "Increase amplitude for accented notes by this value, default is 20"
  ,AddShortOption "exec'" 'x'
  ,AddOptionHelp  "exec'" "Synthesizer executable name, default is espeak"
+ ,AddShortOption "list'" 'L'
+ ,AddOptionHelp  "list'" "List parts of the score and exit"
        ]
