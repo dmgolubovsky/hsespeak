@@ -98,7 +98,10 @@ main' (MXML xmlpath') opts = do
   let outmidi = outstem `addExtension` "mid"
   writeMidi outmidi midifile
   let outwav = outstem `addExtension` "wav"
-  putStrLn $ "maximal drift was " ++ show ((fromRational $ maxDrift fings) :: Float) ++ " sec"
+  if stem' opts
+    then putStrLn outstem
+    else putStrLn $ "maximal drift was " ++ 
+                    show ((fromRational $ maxDrift fings) :: Float) ++ " sec"
   houtw <- openFile outwav WriteMode
   rsox' <- rs44100 
   let rsox = rsox' {
@@ -140,6 +143,7 @@ data Options = Options {
  ,cfreq' :: Maybe Double
  ,exec' :: Maybe String
  ,list' :: Bool
+ ,stem' :: Bool
 } deriving (Show, Generic, HasArguments)
 
 mods :: [Modifier]
@@ -172,4 +176,6 @@ mods = [
  ,AddOptionHelp  "exec'" "Synthesizer executable name, default is espeak"
  ,AddShortOption "list'" 'L'
  ,AddOptionHelp  "list'" "List parts of the score and exit"
+ ,AddShortOption "stem'" 'S'
+ ,AddOptionHelp  "stem'" "Print output file name stem"
        ]
