@@ -1,0 +1,11 @@
+build:
+   split-objs: true
+resolver: lts-7.24
+flags: {}
+packages:
+  - .        
+extra-deps:
+  - WAVE-0.1.4
+  - pure-fft-0.2.0
+  - xml-helpers-1.0.0
+  - zmidi-core-0.8.2

@@ -9,5 +9,6 @@ o.*
 tests/*.err
 pruebas
 dist
+.stack-work
 src/.*.swp
 *.wav

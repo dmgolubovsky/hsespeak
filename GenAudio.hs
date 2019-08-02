@@ -229,6 +229,7 @@ initGenState sc = do
                filter ((> 0) . tempo) $ 
                concatMap measures $ parts sc
    ,midiPause = 0
+   ,execName = ""
   }
 
 
