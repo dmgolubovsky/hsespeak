@@ -9,3 +9,4 @@ extra-deps:
   - pure-fft-0.2.0
   - xml-helpers-1.0.0
   - zmidi-core-0.8.2
+  - getopt-generics-0.13.0.4
