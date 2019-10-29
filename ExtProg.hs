@@ -28,24 +28,6 @@ runEspeak exec ampl voice@(v:vs) pitch speed utter = return $
     utter
   ]
 
--- Run sox to generate a sound of given duration and frequency
--- sox -n -r 22050 -t wav /dev/stdout synth 1.0 sine 220
-
-genSound :: Rational -> Double -> IO CreateProcess
-
-genSound dur freq = return $ proc "sox" [
-    "-n",
-    "-q",
-    "-V0",
-    "-r", "22050",
-    "-b", "16", "-L",
-    "-t", "wav", "/dev/stdout",
-    "synth", show (fromRat dur),
-    "sine", show freq
-  ]
-
--- Run sox as pipe to resample audio to 44100 Hz
--- sox -q -t wav /dev/stdin -r 44100 /dev/stdout
 
 rs44100 :: IO CreateProcess
 

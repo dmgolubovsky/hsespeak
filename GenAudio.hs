@@ -202,12 +202,21 @@ type GS = StateT GenState IO
 initGenState :: Score -> IO GenState
 
 initGenState sc = do
-  nullsnd <- genSound 0.00000001 0 >>= getSample
+  let nullsndhdr = WAVEHeader {
+    waveNumChannels = 1
+   ,waveFrameRate = 22050
+   ,waveBitsPerSample = 16
+   ,waveFrames = Nothing
+  }
+  let nullsnd = WAVE {
+    waveHeader = nullsndhdr
+   ,waveSamples = []
+  }
   return GenState {
     voiceName = "default"
    ,voiceAmpl = 120
    ,accAmpl = 20
-   ,soundOut = nullsnd {waveSamples = []}
+   ,soundOut = nullsnd
    ,lastUtter = ""
    ,lastPitch = (-1)
    ,caliber = Left ("espeak", "default", "ee")

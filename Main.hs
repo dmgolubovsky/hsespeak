@@ -3,14 +3,16 @@
 
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE BangPatterns #-}
 
 module Main where
 
 import WithCli
 import System.IO
+import Data.Word
 import Data.WAVE
 import qualified Data.Map as M
-import Data.List (find, intercalate)
+import Data.List (find, intercalate, concat)
 import Data.Maybe
 import System.Exit
 import System.Environment
@@ -48,7 +50,6 @@ main' (MXML xmlpath') opts = do
         Nothing -> exitFailure
     else return ()
   sc <- parseMusicXML xmlpath'
-  gs <- initGenState sc
   if list' opts
     then do
       let pnms = map partName $ parts sc
@@ -67,6 +68,7 @@ main' (MXML xmlpath') opts = do
       case mbprt of
         Nothing -> error $ "No part named " ++ pp ++ " in the score"
         Just prt -> return prt
+  gs <- initGenState sc
   let gs' = gs {
     voiceName = newvce
    ,accel = fromMaybe 1 (accel' opts)
@@ -88,20 +90,20 @@ main' (MXML xmlpath') opts = do
   let outstem = case output' opts of
                   Nothing -> curdir </> stem
                   Just outp -> dropExtension outp
-  fings <- execStateT procScore gs'
+  (sw, mtmp, mmsg, mxdr) <- processScore gs'
   let midihdr = MidiHeader {
     hdr_format = MF0
    ,num_tracks = 1
-   ,time_division = TPB $ fromIntegral $ midiTempo fings
+   ,time_division = TPB $ fromIntegral mtmp
   }
-  let midifile = MidiFile midihdr [MidiTrack $ midiMsg $ fings]
+  let midifile = MidiFile midihdr [MidiTrack mmsg]
   let outmidi = outstem `addExtension` "mid"
   writeMidi outmidi midifile
   let outwav = outstem `addExtension` "wav"
   if stem' opts
     then putStrLn outstem
     else putStrLn $ "maximal drift was " ++ 
-                    show ((fromRational $ maxDrift fings) :: Float) ++ " sec"
+                    show ((fromRational mxdr) :: Float) ++ " sec"
   houtw <- openFile outwav WriteMode
   rsox' <- rs44100 
   let rsox = rsox' {
@@ -112,11 +114,17 @@ main' (MXML xmlpath') opts = do
   case mbhin of
     Nothing -> error "cannot get sox input pipe handle"
     Just hin -> do
-      hPutWAVE hin (soundOut fings)
+      hPutWAVE hin sw
       hClose hin
   waitForProcess p
   hClose houtw
   return ()
+
+processScore :: GenState -> IO (WAVE, Word32, [MidiMessage], Rational)
+
+processScore gs = do
+  fings <- execStateT procScore gs
+  return $! (soundOut fings, midiTempo fings, midiMsg fings, maxDrift fings)
 
 data MXML = MXML FilePath
 
